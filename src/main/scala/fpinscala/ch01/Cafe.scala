@@ -1,19 +1,27 @@
 package fpinscala.ch01
 
 class Cafe:
-  def buyCoffee(cc: CreditCard, p: Payments): Coffee =
+  def buyCoffee(cc: CreditCard): (Coffee, Charge) =
     val cup = Coffee()
-    p.charge(cc, cup.price)
-    cup
+    (cup, Charge(cc, cup.price))
+
+  def buyCoffees(cc: CreditCard, n: Int): (List[Coffee], Charge) =
+    val purchases: List[(Coffee, Charge)] = List.fill(n)(buyCoffee(cc))
+    val (coffees, charges) = purchases.unzip
+    (coffees, charges.reduce((c1, c2) => c1.combine(c2)))
 
 class CreditCard
 
-trait Payments:
-  def charge(cc: CreditCard, price: Double): Unit
+case class Charge(cc: CreditCard, amount: Double):
+  def combine(other: Charge): Charge =
+    if cc == other.cc then
+      Charge(cc, amount + other.amount)
+    else
+      throw new Exception("Can't combine charges with different cards")
 
-class SimulatedPayments extends Payments:
-  override def charge(cc: CreditCard, price: Double): Unit =
-    println(s"charging $price to $cc")
+object Charge:
+  def coalesce(charges: List[Charge]): List[Charge] =
+    charges.groupBy(_.cc).values.map(_.reduce(_.combine(_))).toList
 
 class Coffee:
   val price: Double = 2.0
